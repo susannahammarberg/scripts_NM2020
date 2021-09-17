@@ -22,9 +22,7 @@ folder = r'\dumps'  #will only have 1 error value (the final one)
 folder = r'\recons'   
 scan = 437
 
-#437_20210816_1135_EPIE_0300
 nam = str(scan) + '_20210816_1135' #437
-
 #nam = str(scan) + '_20210709_1455' #442
 #nam =  str(scan) + '_20210709_1605' #444
 #nam =  str(scan) + '_20210712_1053' #445
@@ -37,11 +35,8 @@ name =  "\\" + nam + "\\" + nam + '_EPIE_%04u' % iterations
 outputSuffix = 'png'
 save = False
 
-
 inputFile = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons' + folder + name + '.ptyr'
-
 savepath = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons\plots' + name
-
 
 if not os.path.exists(savepath):
     os.makedirs(savepath)
@@ -49,20 +44,6 @@ if not os.path.exists(savepath):
     
 
 print('Opening file: \n ', inputFile)
-
-#if args.title is None:
-#    args.title = args.ptyr_file if '/' not in args.ptyr_file else args.ptyr_file.split('/')[-1]
-
-#backProp, forwProp = -args.bw, args.fw
-#outputFile = args.output
-#inputFile = args.ptyr_file
-#title = args.title
-#interactive = not args.not_interactive
-#steps = args.steps
-#flipx = args.flipx
-#flipy = args.flipy
-
-
 
 ### load reconstruction data
 with h5py.File(inputFile, 'r') as hf:
@@ -88,137 +69,128 @@ except IndexError:
     raise IOError('That doesn''t look like a valid reconstruction file!')
 print("Loaded probe %d x %d and object %d x %d, pixel size %.1f nm, energy %.2f keV"%(probe.shape + obj.shape + (psize*1e9, energy)))
 
-###np.save('probe14',probe_focus)
-###
-#plt.figure()
-#plt.imshow((abs(probe)),cmap='RdBu_r'); plt.show()
-#
-#probe2 = np.load(r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\siemensstar\scan14\probe14.npy')
-#plt.figure()
-#plt.imshow((np.abs(probe2)),cmap='jet'); plt.show()
-#
-#plt.figure()
-#plt.plot(np.abs(sum(probe2)))
-
-backProp = -5000.0
-forwProp = 5000.0
-steps = 4 #400
 
 
-probe_basez_4000 = nmutils.utils.propagateNearfield(probe, psize, -4000*1e-6, energy)
-plt.figure()
-plt.imshow(abs(probe_basez_4000[0]),cmap='RdBu_r')
-plt.axis('off')
+def prop_probe():
+    backProp = -5000.0
+    forwProp = 5000.0
+    steps = 4 #400
+    
+    probe_basez_4000 = nmutils.utils.propagateNearfield(probe, psize, -4000*1e-6, energy)
+    plt.figure()
+    plt.imshow(abs(probe_basez_4000[0]),cmap='RdBu_r')
+    plt.axis('off')
+    
+    ### define distances and propagate
+    dist = np.linspace(backProp, forwProp, steps) * 1e-6
+    dx = dist[1] - dist[0]
+    print("propagating to %d positions separated by %.1f um..."\
+        % (len(dist), dx*1e6))
+    ### not sure why, but the propagation goes in the other direction here!
+    ### it could be a misunderstanding about motors at nanomax...
+    field3d = nmutils.utils.propagateNearfield(probe, psize, -dist, energy)
+    
+    ### get intensities and focii
+    power3d = np.abs(field3d)**2
+    power_vertical = np.sum(power3d, axis=2).T
+    power_horizontal = np.sum(power3d, axis=1).T
+    focus_vertical_ind = np.argmax(np.sum(power_vertical**2, axis=0))
+    focus_vertical_x = dist[focus_vertical_ind]
+    focus_horizontal_ind = np.argmax(np.sum(power_horizontal**2, axis=0))
+    focus_horizontal_x = dist[focus_horizontal_ind]
+    focus_ind = np.argmax(np.sum(power3d**2, axis=(1,2)))
+    focus_x = dist[focus_ind]
+    focus = field3d[focus_ind]
+    
+    ### plot
+    fig = plt.figure(figsize=(8, 10))
+    outer_grid = gridspec.GridSpec(2, 2, wspace=.2, hspace=.2, height_ratios=[2,3])
+    
+    # probe and focus spots
+    def spot_subplot(gridcell, data, shareax=None, title=''):
+        subgrid = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gridcell, width_ratios=[3,1], height_ratios=[1,3], hspace=.05, wspace=.05)
+        lims = [-1e6*data.shape[0] * psize / 2, 1e6*data.shape[0] * psize / 2] # um
+        posrange = np.linspace(lims[0], lims[1], data.shape[0])
+        ax = plt.subplot(subgrid[1,0], sharex=shareax, sharey=shareax)
+        plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
+        ax.imshow(nmutils.utils.complex2image(data), extent=lims+[lims[1], lims[0]], interpolation='none')
+        ax_histh = plt.subplot(subgrid[0,0], sharex=ax, yticklabels=[], ylabel='Int.')
+        ax_histv = plt.subplot(subgrid[1,1], sharey=ax, xticklabels=[], xlabel='Int.')
+        ax_histv.plot(np.sum(np.abs(data)**2, axis=1), posrange)
+        ax_histh.plot(posrange, np.sum(np.abs(data)**2, axis=0))
+        ax_histh.set_title(title, x=.67)
+        for tk in ax_histh.get_xticklabels(): tk.set_visible(False)
+        for tk in ax_histv.get_yticklabels(): tk.set_visible(False)
+    
+        # FWHM:
+        import scipy.interpolate
+        for i in (0,1):
+            y = np.sum(np.abs(data)**2, axis=i)
+            edges = scipy.interpolate.UnivariateSpline(posrange, y-y.max()/2).roots()
+            r1, r2 = edges[0], edges[-1]
+            if i == 0:
+                ax_histh.axvspan(r1, r2, fc='r', alpha=.3)
+                ax_histh.text(r2, np.mean(ax_histh.get_ylim()), ' %.0f nm'%((r2-r1)*1e3), fontsize=10, rotation=-90*i)
+                ax.set_xlim(np.mean([r1,r2]) + np.array([-1,1]))
+            elif i == 1:
+                ax_histv.axhspan(r1, r2, fc='r', alpha=.3)
+                ax_histv.text(np.mean(ax_histv.get_xlim()), r1, ' %.0f nm'%((r2-r1)*1e3), fontsize=10, va='top', ha='center', rotation=-90)
+                ax.set_ylim(np.mean([r1,r2]) + np.array([-1,1]))
+        return ax
+    a = spot_subplot(outer_grid[0,0], probe, title='Sample plane')
+    a.set_ylabel('$\mu$m')
+    
+    b = spot_subplot(outer_grid[0,1], focus, shareax=a, title='Focal plane')
+    
+    # beam profiles
+    subgrid = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer_grid[1,:], hspace=.05)
+    ax_vertical = plt.subplot(subgrid[0])
+    ax_horizontal = plt.subplot(subgrid[1], sharex=ax_vertical, sharey=ax_vertical)
+    ax_vertical.imshow(power_vertical, cmap='gray', extent=[1e6*dist[0], 1e6*dist[-1], -1e6*psize*probe.shape[0]/2, 1e6*psize*probe.shape[1]/2], interpolation='none')
+    ax_vertical.axvline(x=focus_vertical_x*1e6, lw=1, ls='--', color='r')
+    ax_vertical.text(1e6*focus_vertical_x, ax_vertical.get_ylim()[0] + .2*np.diff(ax_vertical.get_ylim())[0], 
+        ' %.0f um '%(1e6*focus_vertical_x), color='red', 
+        ha=('right' if focus_vertical_x<focus_x else 'left'))
+    ax_vertical.axvline(x=focus_x*1e6, lw=2, ls='-', color='r')
+    ax_vertical.text(1e6*focus_x, ax_vertical.get_ylim()[0] + .8*np.diff(ax_vertical.get_ylim())[0],
+        ' %.0f um '%(1e6*focus_x), color='red', va='top',
+        ha=('right' if focus_vertical_x>focus_x else 'left'))
+    ax_vertical.set_aspect('auto')
+    ax_horizontal.imshow(power_horizontal, cmap='gray', extent=[1e6*dist[0], 1e6*dist[-1], -1e6*psize*probe.shape[0]/2, 1e6*psize*probe.shape[1]/2], interpolation='none')
+    ax_horizontal.axvline(x=focus_horizontal_x*1e6, lw=1, ls='--', color='r')
+    ax_horizontal.text(1e6*focus_horizontal_x, ax_horizontal.get_ylim()[0] + .2*np.diff(ax_horizontal.get_ylim())[0],
+        ' %.0f um '%(1e6*focus_horizontal_x), color='red',
+        ha=('right' if focus_horizontal_x<focus_x else 'left'))
+    ax_horizontal.axvline(x=focus_x*1e6, lw=2, ls='-', color='r')
+    ax_horizontal.set_aspect('auto')
+    ax_horizontal.set_ylabel('$\mu$m', y=1.05)
+    for tk in ax_vertical.get_xticklabels(): tk.set_visible(False)
+    ax_horizontal.set_xlabel('beamline z axis ($\mu$m)', fontsize=16)
+    
+    lblue = (.3,.3,1.0)
+    ax_vertical.axvline(x=0, lw=1, ls='--', color=lblue)
+    ax_horizontal.axvline(x=0, lw=1, ls='--', color=lblue)
+    ax_horizontal.text(0, ax_horizontal.get_ylim()[0] + .01*np.diff(ax_horizontal.get_ylim())[0], 
+        ' sample ', color=lblue, va='bottom',
+        ha=('left' if focus_x < 0 else 'right'))
+    
+    ax_horizontal.text(1.05, 0.5, 'horizontal focus (M2)',
+         horizontalalignment='center',
+         verticalalignment='center',
+         rotation=90,
+         transform = ax_horizontal.transAxes)
+    ax_vertical.text(1.05, 0.5, 'vertical focus (M1)',
+         horizontalalignment='center',
+         verticalalignment='center',
+         rotation=90,
+         transform = ax_vertical.transAxes)
+    
+    if save is True:
+        fn = savepath + '\\' + 'probe' + '.' + outputSuffix
+        plt.savefig(fn)
+        print('Saved to %s'%fn)
+    
 
-### define distances and propagate
-dist = np.linspace(backProp, forwProp, steps) * 1e-6
-dx = dist[1] - dist[0]
-print("propagating to %d positions separated by %.1f um..."\
-    % (len(dist), dx*1e6))
-### not sure why, but the propagation goes in the other direction here!
-### it could be a misunderstanding about motors at nanomax...
-field3d = nmutils.utils.propagateNearfield(probe, psize, -dist, energy)
-
-### get intensities and focii
-power3d = np.abs(field3d)**2
-power_vertical = np.sum(power3d, axis=2).T
-power_horizontal = np.sum(power3d, axis=1).T
-focus_vertical_ind = np.argmax(np.sum(power_vertical**2, axis=0))
-focus_vertical_x = dist[focus_vertical_ind]
-focus_horizontal_ind = np.argmax(np.sum(power_horizontal**2, axis=0))
-focus_horizontal_x = dist[focus_horizontal_ind]
-focus_ind = np.argmax(np.sum(power3d**2, axis=(1,2)))
-focus_x = dist[focus_ind]
-focus = field3d[focus_ind]
-
-### plot
-fig = plt.figure(figsize=(8, 10))
-outer_grid = gridspec.GridSpec(2, 2, wspace=.2, hspace=.2, height_ratios=[2,3])
-
-# probe and focus spots
-def spot_subplot(gridcell, data, shareax=None, title=''):
-    subgrid = gridspec.GridSpecFromSubplotSpec(2, 2, subplot_spec=gridcell, width_ratios=[3,1], height_ratios=[1,3], hspace=.05, wspace=.05)
-    lims = [-1e6*data.shape[0] * psize / 2, 1e6*data.shape[0] * psize / 2] # um
-    posrange = np.linspace(lims[0], lims[1], data.shape[0])
-    ax = plt.subplot(subgrid[1,0], sharex=shareax, sharey=shareax)
-    plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
-    ax.imshow(nmutils.utils.complex2image(data), extent=lims+[lims[1], lims[0]], interpolation='none')
-    ax_histh = plt.subplot(subgrid[0,0], sharex=ax, yticklabels=[], ylabel='Int.')
-    ax_histv = plt.subplot(subgrid[1,1], sharey=ax, xticklabels=[], xlabel='Int.')
-    ax_histv.plot(np.sum(np.abs(data)**2, axis=1), posrange)
-    ax_histh.plot(posrange, np.sum(np.abs(data)**2, axis=0))
-    ax_histh.set_title(title, x=.67)
-    for tk in ax_histh.get_xticklabels(): tk.set_visible(False)
-    for tk in ax_histv.get_yticklabels(): tk.set_visible(False)
-
-    # FWHM:
-    import scipy.interpolate
-    for i in (0,1):
-        y = np.sum(np.abs(data)**2, axis=i)
-        edges = scipy.interpolate.UnivariateSpline(posrange, y-y.max()/2).roots()
-        r1, r2 = edges[0], edges[-1]
-        if i == 0:
-            ax_histh.axvspan(r1, r2, fc='r', alpha=.3)
-            ax_histh.text(r2, np.mean(ax_histh.get_ylim()), ' %.0f nm'%((r2-r1)*1e3), fontsize=10, rotation=-90*i)
-            ax.set_xlim(np.mean([r1,r2]) + np.array([-1,1]))
-        elif i == 1:
-            ax_histv.axhspan(r1, r2, fc='r', alpha=.3)
-            ax_histv.text(np.mean(ax_histv.get_xlim()), r1, ' %.0f nm'%((r2-r1)*1e3), fontsize=10, va='top', ha='center', rotation=-90)
-            ax.set_ylim(np.mean([r1,r2]) + np.array([-1,1]))
-    return ax
-a = spot_subplot(outer_grid[0,0], probe, title='Sample plane')
-a.set_ylabel('$\mu$m')
-
-b = spot_subplot(outer_grid[0,1], focus, shareax=a, title='Focal plane')
-
-# beam profiles
-subgrid = gridspec.GridSpecFromSubplotSpec(2, 1, subplot_spec=outer_grid[1,:], hspace=.05)
-ax_vertical = plt.subplot(subgrid[0])
-ax_horizontal = plt.subplot(subgrid[1], sharex=ax_vertical, sharey=ax_vertical)
-ax_vertical.imshow(power_vertical, cmap='gray', extent=[1e6*dist[0], 1e6*dist[-1], -1e6*psize*probe.shape[0]/2, 1e6*psize*probe.shape[1]/2], interpolation='none')
-ax_vertical.axvline(x=focus_vertical_x*1e6, lw=1, ls='--', color='r')
-ax_vertical.text(1e6*focus_vertical_x, ax_vertical.get_ylim()[0] + .2*np.diff(ax_vertical.get_ylim())[0], 
-    ' %.0f um '%(1e6*focus_vertical_x), color='red', 
-    ha=('right' if focus_vertical_x<focus_x else 'left'))
-ax_vertical.axvline(x=focus_x*1e6, lw=2, ls='-', color='r')
-ax_vertical.text(1e6*focus_x, ax_vertical.get_ylim()[0] + .8*np.diff(ax_vertical.get_ylim())[0],
-    ' %.0f um '%(1e6*focus_x), color='red', va='top',
-    ha=('right' if focus_vertical_x>focus_x else 'left'))
-ax_vertical.set_aspect('auto')
-ax_horizontal.imshow(power_horizontal, cmap='gray', extent=[1e6*dist[0], 1e6*dist[-1], -1e6*psize*probe.shape[0]/2, 1e6*psize*probe.shape[1]/2], interpolation='none')
-ax_horizontal.axvline(x=focus_horizontal_x*1e6, lw=1, ls='--', color='r')
-ax_horizontal.text(1e6*focus_horizontal_x, ax_horizontal.get_ylim()[0] + .2*np.diff(ax_horizontal.get_ylim())[0],
-    ' %.0f um '%(1e6*focus_horizontal_x), color='red',
-    ha=('right' if focus_horizontal_x<focus_x else 'left'))
-ax_horizontal.axvline(x=focus_x*1e6, lw=2, ls='-', color='r')
-ax_horizontal.set_aspect('auto')
-ax_horizontal.set_ylabel('$\mu$m', y=1.05)
-for tk in ax_vertical.get_xticklabels(): tk.set_visible(False)
-ax_horizontal.set_xlabel('beamline z axis ($\mu$m)', fontsize=16)
-
-lblue = (.3,.3,1.0)
-ax_vertical.axvline(x=0, lw=1, ls='--', color=lblue)
-ax_horizontal.axvline(x=0, lw=1, ls='--', color=lblue)
-ax_horizontal.text(0, ax_horizontal.get_ylim()[0] + .01*np.diff(ax_horizontal.get_ylim())[0], 
-    ' sample ', color=lblue, va='bottom',
-    ha=('left' if focus_x < 0 else 'right'))
-
-ax_horizontal.text(1.05, 0.5, 'horizontal focus (M2)',
-     horizontalalignment='center',
-     verticalalignment='center',
-     rotation=90,
-     transform = ax_horizontal.transAxes)
-ax_vertical.text(1.05, 0.5, 'vertical focus (M1)',
-     horizontalalignment='center',
-     verticalalignment='center',
-     rotation=90,
-     transform = ax_vertical.transAxes)
-
-#%%
-if save is True:
-    fn = savepath + '\\' + 'probe' + '.' + outputSuffix
-    plt.savefig(fn)
-    print('Saved to %s'%fn)
 
 extent = 1e6 * np.array([origin[0], origin[0]+(obj.shape[1]-1)*psize, origin[1], origin[1]+(obj.shape[0]-1)*psize])
 
