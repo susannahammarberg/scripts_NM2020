@@ -27,7 +27,7 @@ folder = 'C:/Users/Sanna/NanoMAX_May2020_rawdata_selection/raw/'
 #scannr = 470 #Bragg InGaP center.    445#         # 397#    
 
 
-scannr = 444# 442#444
+scannr = 445# 442#444
 #scannr = 509
 distance = 1.0
 energy = 10
@@ -76,14 +76,19 @@ p.scans.scan00.data.yMotor = 'npoint_buff/y' #'sy'
 p.scans.scan00.data.xMotorAngle = 8.8 
 #p.scans.scan00.data.shape = 110
 #p.scans.scan00.data.shape = 224
-##############_**************************************TGTG¤GGGGGGGGGGGGGGGGGG
-p.scans.scan00.data.shape = 170
+##############_**************************************TGTG¤GGGGGGGGGGGGGGGGGG""""""""""""""""""""""""
+
+p.scans.scan00.data.shape = 512
 p.scans.scan00.data.save = None
 #--------- Set 445 etc
 # test GainP
 #p.scans.scan00.data.center = (148,155)# GaInP   
 # InP close to bragg
 p.scans.scan00.data.center = (148, 345)# InPx364
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""Experiment """
+p.scans.scan00.data.center = (148, 345-256)# InPx364
+
 #---------
 #--------- Set with bragg inp at 
 #InP
@@ -136,9 +141,9 @@ p.scans.scan00.illumination.aperture = None #need this to rescale the probe in b
 p.engines = u.Param()
 p.engines.engine00 = u.Param()
 p.engines.engine00.name = 'ePIE'
-p.engines.engine00.numiter = 1000
-p.engines.engine00.numiter_contiguous = 100
-p.engines.engine00.probe_update_start = 10000 ###(default 2)
+p.engines.engine00.numiter = 1
+p.engines.engine00.numiter_contiguous = 1
+#p.engines.engine00.probe_update_start = 1#10000 ###(default 2)
 #average probe in each node "Averaging seems to work the best."
 #TODO evaluate this 20210915 added this
 #p.engines.engine00.average_probe = True
@@ -151,7 +156,7 @@ p.engines.engine00.beta = 0.9
 #does not work with ePIE (support is equal to none)
 p.engines.engine00.probe_support = 0.7
 
-P = Ptycho(p,level=5)
+P = Ptycho(p,level=2)
 
 #%%
 
@@ -165,13 +170,14 @@ diff_data = P.diff.storages['S0000'].data*P.mask.storages['S0000'].data #P.diff.
 ##
 ##position = [int(len(diff_data)/2)]
 ##
-##plt.figure()
-##plt.imshow((np.log10(sum(diff_data))),cmap='magma', interpolation='none')
-##plt.title('Summed intensity ()')
-##plt.savefig('sum_intensity')
-##plt.colorbar()
-##plt.show()
-##
+plt.figure()
+plt.imshow((np.log10(sum(diff_data))),cmap='magma', interpolation='none')
+plt.title('Summed intensity ()')
+plt.savefig('sum_intensity')
+plt.colorbar()
+plt.show()
+
+
 probe = np.squeeze(P.probe.storages['Sscan00G00'].data )
 
 plt.figure()
