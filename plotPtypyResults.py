@@ -17,12 +17,12 @@ matplotlib.use( 'Qt5agg' )
 
 #C:/Users/Sanna/Documents/Beamtime/NanoMAX_May2020/Analysis/scans429_503/2drecons/dumps/445_20210712_1053/445_20210712_1053_EPIE_0290.ptyr
 #recons/445_20210712_1053/445_20210712_1053_EPIE_0300.ptyr
-iterations = 300
+iterations = 500
 folder = r'\dumps'  #will only have 1 error value (the final one)
 folder = r'\recons'   
-scan = 437
+scan = 441
 
-nam = str(scan) + '_20210816_1135' #437
+nam = str(scan) + '_20210920_1635' #437
 #nam = str(scan) + '_20210709_1455' #442
 #nam =  str(scan) + '_20210709_1605' #444
 #nam =  str(scan) + '_20210712_1053' #445
@@ -33,7 +33,7 @@ nam = str(scan) + '_20210816_1135' #437
 name =  "\\" + nam + "\\" + nam + '_EPIE_%04u' % iterations
 
 outputSuffix = 'png'
-save = False
+save = True
 
 inputFile = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons' + folder + name + '.ptyr'
 savepath = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons\plots' + name
@@ -55,11 +55,13 @@ with h5py.File(inputFile, 'r') as hf:
     energy = np.array(hf.get('content/probe/%s/_energy' % scanid))
     origin = np.array(hf.get('content/probe/%s/_origin' % scanid))
 
-    errors = []
+    err1 = []
+    err2 = []
     for ite in range(0,iterations):
         hh = np.array(hf.get('content/runtime/iter_info/%s/error'%('{0:05}'.format(ite))))        
         if hh.size == 3:
-            errors.append(hh)
+            err1.append(hh[0])
+            err2.append(hh[2])
             print('saved error %d'%ite)
 try:
     probe = probe[0]
@@ -195,7 +197,7 @@ def prop_probe():
 extent = 1e6 * np.array([origin[0], origin[0]+(obj.shape[1]-1)*psize, origin[1], origin[1]+(obj.shape[0]-1)*psize])
 
 ### Object
-
+#%%
 def plot2drecons(obj, probe, extent,savepath, save):
     fig, ax = plt.subplots(ncols=2, figsize=(10,3), sharex=True, sharey=True)
     #fig, ax = plt.subplots(ncols=2, figsize=(10,6), sharex=True, sharey=True)
@@ -204,11 +206,15 @@ def plot2drecons(obj, probe, extent,savepath, save):
        
     # amplitude
     mag = np.abs(obj)
-    slicey = slice(90,130) #for real data recons
-    slicex = slice(100,290) #for real data recons
+    #slicey = slice(90,130)  #for real data recons with shape 170
+    #slicex = slice(100,290) #for real data recons with shape 170
 
-    slicey = slice(90,130) #for simulated data recons (should be the same, but for now)
-    slicex = slice(150,290)
+    slicey = slice(140,200)  #for real data recons with shape 170
+    slicex = slice(240,438) #for real data recons with shape 170
+
+
+    #slicey = slice(90,130) #for simulated data recons (should be the same, but for now)
+    #slicex = slice(150,290)
     
     #mag_cut = mag[mag.shape[0]//3:2*mag.shape[0]//3, mag.shape[1]//3:2*mag.shape[1]//3] # to find relevant dynamic range
     mag_cut = mag[slicey,slicex] # to find relevant dynamic range
@@ -248,7 +254,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     #zoomed in version
     
     extent_zoomed = 1e6 * np.array([origin[0], origin[0]+(mag_cut.shape[1]-1)*psize, origin[1], origin[1]+(mag_cut.shape[0]-1)*psize])
-    #%%
+    
     #mask with amplitude  
     amplitude_range = vmax-vmin
     #mask_at = -1.5#0.05 * (vmin + amplitude_range)
@@ -293,8 +299,8 @@ def plot2drecons(obj, probe, extent,savepath, save):
         plt.savefig(fn)
         print("Saved to %s"%fn)
     
-    #%%
-    slicex_170 = slice(50,190)
+    
+    #slicex_170 = slice(50,190)
     
     fig, ax = plt.subplots()
     #70 segment zoomed
@@ -351,7 +357,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     
     # plot strain
     fig, ax = plt.subplots(ncols=1)
-    img = ax.imshow(masked_strain*100, cmap='RdBu_r', extent=extent_zoomed, interpolation='none', vmin=vs_min, vmax=vs_max)
+    img = ax.imshow(masked_strain*100, cmap='RdBu_r', extent=extent_zoomed, interpolation='none')#, vmin=vs_min, vmax=vs_max)
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
     ax.set_xlabel('$\mu$m')
     divider = make_axes_locatable(ax)
@@ -368,9 +374,15 @@ def plot2drecons(obj, probe, extent,savepath, save):
     
     #---------------------------------------------
     # plot zoomed version (zoomed on 2 largest segments)     
+    slicey2 = slice(8,50)
+    slicex2 = slice(0,100)
+
+    #slicey2 = slice(8,30) #for shape 170
+    #slicex2 = slice(0,100) #for shape 170
+    print('shaaaaape' , masked_strain.shape)
     
-    slicey2 = slice(8,30)
-    slicex2 = slice(12,66)
+    #slicey2 = slice(8,30)    #sim data
+    #slicex2 = slice(12,66)    #sim data
     
     masked_strain_zoomed = masked_strain[slicey2,slicex2]
     extent_zoomed2 = 1e6 * np.array([origin[0], origin[0]+(masked_strain_zoomed.shape[1]-1)*psize, origin[1], origin[1]+(masked_strain_zoomed.shape[0]-1)*psize])
@@ -392,4 +404,20 @@ def plot2drecons(obj, probe, extent,savepath, save):
         plt.savefig(fn)
         print("Saved to %s"%fn)
         
-#plot2drecons(obj, probe, extent,savepath, save):
+plot2drecons(obj, probe, extent,savepath, save)
+
+#%%
+def plot_recon_error(error, save):
+    
+    plt.figure()
+    plt.title('Reconstruction error')
+    plt.plot(error,'blue')
+    plt.xlabel('iteration /10')
+    #plt.plot(abs(ferrors),'red')
+    if save is True:
+        fn = savepath + '\\' + 'error' + '.' + outputSuffix
+        plt.savefig(fn)
+        print("Saved to %s"%fn)
+    
+plot_recon_error(err1, save)
+#plot_recon_error(err2, save)
