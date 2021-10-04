@@ -17,12 +17,12 @@ matplotlib.use( 'Qt5agg' )
 
 #C:/Users/Sanna/Documents/Beamtime/NanoMAX_May2020/Analysis/scans429_503/2drecons/dumps/445_20210712_1053/445_20210712_1053_EPIE_0290.ptyr
 #recons/445_20210712_1053/445_20210712_1053_EPIE_0300.ptyr
-iterations = 500
+iterations = 300
 folder = r'\dumps'  #will only have 1 error value (the final one)
 folder = r'\recons'   
-scan = 441
+scan = 445
 
-nam = str(scan) + '_20210920_1635' #437
+nam = str(scan) + '_20210921_1525' #437
 #nam = str(scan) + '_20210709_1455' #442
 #nam =  str(scan) + '_20210709_1605' #444
 #nam =  str(scan) + '_20210712_1053' #445
@@ -33,7 +33,7 @@ nam = str(scan) + '_20210920_1635' #437
 name =  "\\" + nam + "\\" + nam + '_EPIE_%04u' % iterations
 
 outputSuffix = 'png'
-save = True
+save = False
 
 inputFile = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons' + folder + name + '.ptyr'
 savepath = r'C:\Users\Sanna\Documents\Beamtime\NanoMAX_May2020\Analysis\scans429_503\2drecons\plots' + name
@@ -208,9 +208,10 @@ def plot2drecons(obj, probe, extent,savepath, save):
     mag = np.abs(obj)
     #slicey = slice(90,130)  #for real data recons with shape 170
     #slicex = slice(100,290) #for real data recons with shape 170
-
+    global slicey
+    global slicex
     slicey = slice(140,200)  #for real data recons with shape 170
-    slicex = slice(240,438) #for real data recons with shape 170
+    slicex = slice(214,438) #for real data recons with shape 170
 
 
     #slicey = slice(90,130) #for simulated data recons (should be the same, but for now)
@@ -252,7 +253,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     #import pdb; pdb.set_trace()
     
     #zoomed in version
-    
+    global extent_zoomed
     extent_zoomed = 1e6 * np.array([origin[0], origin[0]+(mag_cut.shape[1]-1)*psize, origin[1], origin[1]+(mag_cut.shape[0]-1)*psize])
     
     #mask with amplitude  
@@ -304,7 +305,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     
     fig, ax = plt.subplots()
     #70 segment zoomed
-    img = ax.imshow( (mask* np.angle(obj[slicey,slicex])), cmap='jet', interpolation='none', extent=extent_zoomed)#, vmin=-np.pi, vmax=np.pi)#)
+    img = ax.imshow( (mask* np.unwrap( np.angle(obj[slicey,slicex]),axis=0)), cmap='jet', interpolation='none', extent=extent_zoomed)#, vmin=-np.pi, vmax=np.pi)#)
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
     ax.set_ylabel('$\mu$m')
     ax.set_xlabel('$\mu$m')
@@ -345,7 +346,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     #strain = np.diff(np.angle(obj[slicey, slicex]) /InP_Qvect , axis = 1, append=0) /dz
     
     strain = np.gradient((((np.angle(obj[slicey, slicex])))/InP_Qvect) , dz)[1] 
-    
+    global masked_strain
     masked_strain = mask* strain
     
     ##Average over the reigion of interest (that is a bit arbitrary)
@@ -357,8 +358,10 @@ def plot2drecons(obj, probe, extent,savepath, save):
     
     # plot strain
     fig, ax = plt.subplots(ncols=1)
-    img = ax.imshow(masked_strain*100, cmap='RdBu_r', extent=extent_zoomed, interpolation='none')#, vmin=vs_min, vmax=vs_max)
+    img = ax.imshow(masked_strain*100, cmap='RdBu_r')#, extent=extent_zoomed, interpolation='none')#, vmin=vs_min, vmax=vs_max)
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
+    #plt.plot(obj.shape[1]*[1])
+    plt.axhline(y=35,color='red')
     ax.set_xlabel('$\mu$m')
     divider = make_axes_locatable(ax)
     cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -421,3 +424,36 @@ def plot_recon_error(error, save):
     
 plot_recon_error(err1, save)
 #plot_recon_error(err2, save)
+#%%
+xx = np.linspace(extent_zoomed[0],extent_zoomed[1],obj[slicey,slicex].shape[1])
+
+def plot_line_plot(obj,save):
+    
+    plt.figure()
+    plt.title('Lineplot of phase wrapped and unwrapped')
+    #plt.title('Line plot of strain [%]')
+    
+    plt.plot(xx, (np.abs(obj[34,:])),'.-')
+    plt.plot(xx, (np.angle(obj[34,:])),'.-')
+    plt.plot(xx, np.unwrap(np.angle(obj[34,:])),'.-')
+    yyy = np.angle(obj[34])
+    yyy[33:] -= 2*np.pi 
+    yyy[54:] -= 2*np.pi 
+    plt.legend(['Recon amplitude','Recons phase wrapped','Recons phase unwrapped'])
+    #plt.plot(xx, yyy,'.-')
+    #plt.plot( np.angle(obj[34])-2*np.pi,'.-')
+    #plt.plot( np.angle(obj[34,:]),'.-')
+    
+    plt.xlabel('$\mu$m')
+    
+    if save is True:
+        fn = savepath + '\\' + 'amp_lineplot' + '.' + outputSuffix
+        plt.savefig(fn)
+        print("Saved to %s"%fn)
+plot_line_plot(obj[slicey,slicex],save=False)
+#plot_line_plot(masked_strain*100,save=False)
+
+obj[slicey,slicex].shape
+    
+
+
