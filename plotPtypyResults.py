@@ -249,7 +249,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     cb.ax.set_yticklabels(['-$\pi$', '-$\pi/2$', '0', '$\pi/2$', '$\pi$'])
     ax[1].set_title('Phase')
     
-    plt.show()
+    #plt.show()
     #import pdb; pdb.set_trace()
     
     #zoomed in version
@@ -293,7 +293,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     cb.ax.set_yticklabels(['-$\pi$', '-$\pi/2$', '0', '$\pi/2$', '$\pi$'])
     ax[1].set_title('Phase')
     #plt.savefig('hyyhy6')
-    plt.show()
+   # plt.show()
     
     if save is True:
         fn = savepath + '\\' + 'object_zoomed' + '.' + outputSuffix
@@ -305,7 +305,7 @@ def plot2drecons(obj, probe, extent,savepath, save):
     
     fig, ax = plt.subplots()
     #70 segment zoomed
-    img = ax.imshow( (mask* np.unwrap( np.angle(obj[slicey,slicex]),axis=0)), cmap='jet', interpolation='none', extent=extent_zoomed)#, vmin=-np.pi, vmax=np.pi)#)
+    img = ax.imshow( (mask* ( np.angle(obj[slicey,slicex]))), cmap='jet', interpolation='none', extent=extent_zoomed)#, vmin=-np.pi, vmax=np.pi)#)
     plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
     ax.set_ylabel('$\mu$m')
     ax.set_xlabel('$\mu$m')
@@ -407,6 +407,58 @@ def plot2drecons(obj, probe, extent,savepath, save):
         plt.savefig(fn)
         print("Saved to %s"%fn)
         
+    #extent_zoomed3 =     
+  
+    #phase of 170 nm segment
+    slicey3 = slice(15,-5)
+    slicex3 = slice(28,62)
+    fig, ax = plt.subplots()
+    #70 segment zoomed
+    img = ax.imshow( ( np.angle(obj[slicey,slicex][slicey2,slicex2][slicey3,slicex3])), cmap='jet', interpolation='none')#, vmin=-np.pi, vmax=np.pi)#)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
+    ax.set_ylabel('$\mu$m')
+    ax.set_xlabel('$\mu$m')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cb = plt.colorbar(img, cax=cax)#, ticks=(-np.pi, -np.pi/2, 0, np.pi/2, np.pi))
+    #cb.ax.set_yticklabels(['-$\pi$', '-$\pi/2$', '0', '$\pi/2$', '$\pi$'])
+    ax.set_title('Phase masked with log10 amplitude')
+    #plt.savefig('hyyhy6')
+    plt.show()
+      
+    #phase of 170 nm segment
+    fig, ax = plt.subplots()
+    #70 segment zoomed
+    img = ax.imshow( unwrap_phase( np.angle(obj[slicey,slicex][slicey2,slicex2][slicey3,slicex3])), cmap='jet', interpolation='none')#, vmin=-np.pi, vmax=np.pi)#)
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
+    ax.set_ylabel('$\mu$m')
+    ax.set_xlabel('$\mu$m')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cb = plt.colorbar(img, cax=cax)#, ticks=(-np.pi, -np.pi/2, 0, np.pi/2, np.pi))
+    #cb.ax.set_yticklabels(['-$\pi$', '-$\pi/2$', '0', '$\pi/2$', '$\pi$'])
+    ax.set_title('Phase masked with log10 amplitude')
+    #plt.savefig('hyyhy6')
+    plt.show()
+    
+    #####OBSOBSOBS
+    """ OBSOBSOBS TEST"""
+    strain_170 = np.gradient(((    unwrap_phase(np.angle(obj[slicey,slicex][slicey2,slicex2][slicey3,slicex3])))/InP_Qvect) , dz)[1] 
+    
+    fig, ax = plt.subplots(ncols=1)
+    img = ax.imshow(strain_170*100, cmap='RdBu_r', interpolation='none')#, vmin=vs_min)  #extent=extent_zoomed2
+    plt.setp(ax.xaxis.get_majorticklabels(), rotation=70 )
+    ax.set_xlabel('$\mu$m')
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    cb = plt.colorbar(img, cax=cax)#, ticks=(-np.pi, -np.pi/2, 0, np.pi/2, np.pi))
+    #cb.ax.set_yticklabels(['-$\pi$', '-$\pi/2$', '0', '$\pi/2$', '$\pi$'])
+    ax.set_title('Strain [%]')
+    #plt.savefig('strain')
+    plt.show()
+
+from skimage.restoration import unwrap_phase  
+#plt.close('all')      
 plot2drecons(obj, probe, extent,savepath, save)
 
 #%%
@@ -430,20 +482,23 @@ xx = np.linspace(extent_zoomed[0],extent_zoomed[1],obj[slicey,slicex].shape[1])
 def plot_line_plot(obj,save):
     
     plt.figure()
-    plt.title('Lineplot of phase wrapped and unwrapped')
+    #Line in 2d,  mask the phase with amplitude
+    #plt.title('Lineplot of phase wrapped and unwrapped')
     #plt.title('Line plot of strain [%]')
-    
-    plt.plot(xx, (np.abs(obj[34,:])),'.-')
     plt.plot(xx, (np.angle(obj[34,:])),'.-')
-    plt.plot(xx, np.unwrap(np.angle(obj[34,:])),'.-')
+    
+    #plt.plot(xx, np.unwrap(np.angle(obj[34,:])),'.-')
     yyy = np.angle(obj[34])
     yyy[33:] -= 2*np.pi 
     yyy[54:] -= 2*np.pi 
-    plt.legend(['Recon amplitude','Recons phase wrapped','Recons phase unwrapped'])
     #plt.plot(xx, yyy,'.-')
     #plt.plot( np.angle(obj[34])-2*np.pi,'.-')
     #plt.plot( np.angle(obj[34,:]),'.-')
+    #plt.legend(['Recons phase wrapped','Recons phase unwrapped'],loc ='upper left')
     
+    plt.twinx()
+    plt.plot(xx, (np.abs(obj[34,:])),'r.-')
+    #plt.legend(['Recon amplitude'],loc ='upper right')
     plt.xlabel('$\mu$m')
     
     if save is True:
