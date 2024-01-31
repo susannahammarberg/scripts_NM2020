@@ -27,8 +27,7 @@ folder = 'C:/Users/Sanna/NanoMAX_May2020_rawdata_selection/raw/'
 #scannr = 470 #Bragg InGaP center.    445#         # 397#    
 
 
-scannr = 445# 442#444
-#scannr = 509
+scannr = 472#470
 distance = 1.0
 energy = 10
 ########################################################################
@@ -73,22 +72,23 @@ p.scans.scan00.data.yMotor = 'npoint_buff/y' #'sy'
 
 # "Angle of the motor x axis relative to the lab x axis"
 #TODO Check!
-p.scans.scan00.data.xMotorAngle = 8.8 
+print('testing to use 0 here, cos the motor is moving in the lab system, maynbe. usually used 8.8')
+p.scans.scan00.data.xMotorAngle = 8.8 #0 ####8.8 
 #p.scans.scan00.data.shape = 110
 #p.scans.scan00.data.shape = 224
 ##############_**************************************TGTG¤GGGGGGGGGGGGGGGGGG""""""""""""""""""""""""
-
-p.scans.scan00.data.shape = 512
+#print('*****ops shape************')
+p.scans.scan00.data.shape = 256# 340# 170 #512
 p.scans.scan00.data.save = None
 #--------- Set 445 etc
 # test GainP
-#p.scans.scan00.data.center = (148,155)# GaInP   
+p.scans.scan00.data.center = (148,120+50-14)# GaInP  (med hela bilden) 
 # InP close to bragg
-p.scans.scan00.data.center = (148, 345)# InPx364
+##p.scans.scan00.data.center = (148, 345)# InPx364
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""Experiment """
-p.scans.scan00.data.center = (148, 345-256)# InPx364
-
+#"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""Experiment """
+#p.scans.scan00.data.center = (148, 345-256   -8)# InPx364    Use this when ptypy hacked
+ 
 #---------
 #--------- Set with bragg inp at 
 #InP
@@ -141,22 +141,41 @@ p.scans.scan00.illumination.aperture = None #need this to rescale the probe in b
 p.engines = u.Param()
 p.engines.engine00 = u.Param()
 p.engines.engine00.name = 'ePIE'
-p.engines.engine00.numiter = 1
-p.engines.engine00.numiter_contiguous = 1
-#p.engines.engine00.probe_update_start = 1#10000 ###(default 2)
+p.engines.engine00.numiter = 2000
+p.engines.engine00.numiter_contiguous = 200
+#""""OBSOBS test med  rörlig probe                                       """
+p.engines.engine00.probe_update_start = 10000 ###(default 2)
+
+#p.engines.engine00.position_refinement = u.Param()
+#p.engines.engine00.position_refinement.start = 0
+#p.engines.engine00.position_refinement.stop = 20
+#p.engines.engine00.position_refinement.interval = 1
+#p.engines.engine00.position_refinement.nshifts = 4
+#p.engines.engine00.position_refinement.amplitude = 10E-9   # ??
+#p.engines.engine00.position_refinement.max_shift = 40E-9  #??
+#p.engines.engine00.position_refinement.record = False
 #average probe in each node "Averaging seems to work the best."
 #TODO evaluate this 20210915 added this
 #p.engines.engine00.average_probe = True
 
+#p.engines.engine01 = u.Param()
+#p.engines.engine01.name = 'DM'
+#p.engines.engine01.numiter = 500
+#p.engines.engine01.numiter_contiguous = 100
+#""""OBSOBS test med  rörlig probe                                       """
+#p.engines.engine01.probe_update_start = 200 ###(default 2)
+
+
 #TODO try this
 # Clip object amplitude into this interval (tuple)
 #p.engines.engine00.clip_object = 
-p.engines.engine00.beta = 0.9
+#p.engines.engine00.beta = 0.7
+#p.engines.engine00.alpha = 1E-4 #TOTRY 20220317
 
 #does not work with ePIE (support is equal to none)
 p.engines.engine00.probe_support = 0.7
 
-P = Ptycho(p,level=2)
+P = Ptycho(p,level=5)
 
 #%%
 
@@ -183,7 +202,7 @@ probe = np.squeeze(P.probe.storages['Sscan00G00'].data )
 plt.figure()
 plt.imshow(abs(loaded_profile),cmap='jet',interpolation=None)
 plt.figure()
-plt.imshow(np.log10(abs(probe)),cmap='jet',interpolation=None)
+plt.imshow((abs(probe)),cmap='jet',interpolation=None)
 
 #np.save('probe14_resapled_to_shape_170_reso_13nm',probe)
 ##
